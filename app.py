@@ -86,6 +86,9 @@ def callback():
 def handle_message(event):
     user_msg = event.message.text # 使用者傳來的文字
     
+    # 👇 新增這段：測試機器人是不是活著
+    if user_msg == "嗨":
+        return "你好！我現在住在美國的雲端主機上喔！☁️🇺🇸"
     # 判斷使用者是不是想看展
     if "看展" in user_msg or "展覽" in user_msg:
         reply_msg = get_exhibitions() # 呼叫爬蟲功能！
