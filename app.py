@@ -37,7 +37,7 @@ def get_exhibitions():
     except Exception as e:
         # 👇 新增這一行：如果失敗了，把真正的錯誤原因印在黑色視窗給我們看
         print("抓取失敗，錯誤原因：", e)
-        return "😭 嗚嗚...文化部資料庫目前連不上，可能在維修中，請稍後再試！"
+        return "剛睡醒腦袋運轉中... 😵‍💫 請再傳一次「看展」我就會醒來囉！"
         
     now = datetime.now()
     count = 0
