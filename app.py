@@ -21,21 +21,21 @@ CHANNEL_SECRET = "75806eeda75c04e912aa27470eaad174"
 configuration = Configuration(access_token=CHANNEL_ACCESS_TOKEN)
 handler = WebhookHandler(CHANNEL_SECRET)
 
-# 👇 把原本的 get_exhibitions 整段換成這個
+
 def get_exhibitions():
     url = "https://cloud.culture.tw/frontsite/trans/SearchShowAction.do?method=doFindTypeJ&category=6"
     
-    # 🎭 戴上面具：假裝我們是普通的瀏覽器，不是機器人
+    
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     }
     
     try:
-        # 👇 修改這一行：加上 verify=False (叫 Python 不要太嚴格檢查安全憑證)
+        # 加上 verify=False (叫 Python 不要太嚴格檢查安全憑證)
         response = requests.get(url, headers=headers, verify=False)
         exhibitions = response.json()
     except Exception as e:
-        # 👇 新增這一行：如果失敗了，把真正的錯誤原因印在黑色視窗給我們看
+        # 如果失敗了，把真正的錯誤原因印在黑色視窗給我們看
         print("抓取失敗，錯誤原因：", e)
         return "剛睡醒腦袋運轉中... 😵‍💫 請再傳一次「看展」我就會醒來囉！"
         
@@ -81,12 +81,13 @@ def callback():
     except InvalidSignatureError:
         abort(400)
     return 'OK'
+ 
 
 @handler.add(MessageEvent, message=TextMessageContent)
 def handle_message(event):
     user_msg = event.message.text # 使用者傳來的文字
     
-    # 👇 新增這段：測試機器人是不是活著
+    # 測試機器人是不是活著
     if user_msg == "嗨":
         return "你好！我現在住在美國的雲端主機上喔！☁️🇺🇸"
     # 判斷使用者是不是想看展
