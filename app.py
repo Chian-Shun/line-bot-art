@@ -24,26 +24,27 @@ handler = WebhookHandler(CHANNEL_SECRET)
 
 def get_exhibitions():
     try:
-        # 👇 這是文化部的網址 (不用改)
+        # 👇 真實的文化部網址
         url = "https://cloud.culture.tw/frontsite/trans/SearchShowAction.do?method=doFindTypeJ&category=6"
         
-        # 👇【新增】戴上「我是 Google Chrome 瀏覽器」的面具
+        # 👇 戴上偽裝面具 (假裝是電腦瀏覽器)
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
 
-        # 👇 請求時戴上面具 (headers) 並關閉安全檢查 (verify=False)
+        # 👇 發送請求 (verify=False 是為了繞過一些安全檢查)
         response = requests.get(url, headers=headers, verify=False)
         
-        # 試著解讀資料
+        # 嘗試解讀資料
         exhibitions = response.json()
         
     except Exception as e:
-        # 如果還是失敗，把錯誤印出來
+        # 👇 如果失敗，這裡會顯示錯誤
+        # 你之前看到的「剛睡醒...」其實就是這裡的錯誤訊息
         print("抓取失敗，錯誤原因：", e)
-        return "😭 嗚嗚... 連不上文化部 QQ"
+        return "😵‍💫 剛睡醒腦袋運轉中... 如果再試一次還是不行，可能就是文化部暫時不想理我 (IP 被擋) 😭"
 
-    # 👇 如果成功拿到資料，就開始整理 (這段跟原本一樣)
+    # 👇 如果成功拿到資料，就開始整理
     now = datetime.now()
     result_text = "🎉 幫你找到最新的台北展覽：\n\n"
     
@@ -68,17 +69,6 @@ def get_exhibitions():
         return "最近台北好像沒有展覽資料耶 🤔"
         
     return result_text
-
-@app.route("/callback", methods=['POST'])
-def callback():
-    signature = request.headers['X-Line-Signature']
-    body = request.get_data(as_text=True)
-    app.logger.info("Request body: " + body)
-    try:
-        handler.handle(body, signature)
-    except InvalidSignatureError:
-        abort(400)
-    return 'OK'
  
 
 @handler.add(MessageEvent, message=TextMessageContent)
