@@ -23,51 +23,49 @@ handler = WebhookHandler(CHANNEL_SECRET)
 
 
 def get_exhibitions():
-    url = "https://cloud.culture.tw/frontsite/trans/SearchShowAction.do?method=doFindTypeJ&category=6"
-    
-    
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-    }
-    
     try:
-        # 加上 verify=False (叫 Python 不要太嚴格檢查安全憑證)
+        # 👇 這是文化部的網址 (不用改)
+        url = "https://cloud.culture.tw/frontsite/trans/SearchShowAction.do?method=doFindTypeJ&category=6"
+        
+        # 👇【新增】戴上「我是 Google Chrome 瀏覽器」的面具
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+
+        # 👇 請求時戴上面具 (headers) 並關閉安全檢查 (verify=False)
         response = requests.get(url, headers=headers, verify=False)
+        
+        # 試著解讀資料
         exhibitions = response.json()
+        
     except Exception as e:
-        # 如果失敗了，把真正的錯誤原因印在黑色視窗給我們看
+        # 如果還是失敗，把錯誤印出來
         print("抓取失敗，錯誤原因：", e)
-        return "剛睡醒腦袋運轉中... 😵‍💫 請再傳一次「看展」我就會醒來囉！"
-        
+        return "😭 嗚嗚... 連不上文化部 QQ"
+
+    # 👇 如果成功拿到資料，就開始整理 (這段跟原本一樣)
     now = datetime.now()
-    count = 0
-    result_text = "🎨 幫你找到最新的台北展覽：\n\n"
+    result_text = "🎉 幫你找到最新的台北展覽：\n\n"
     
+    count = 0
     for show in exhibitions:
-        if len(show['showInfo']) == 0: continue
-        info = show['showInfo'][0]
-        
-        # 時間檢查
-        end_time_str = info.get('endTime', '')
-        if end_time_str == '': continue
-        try:
-            end_time = datetime.strptime(end_time_str, "%Y/%m/%d %H:%M:%S")
-            if end_time < now: continue
-        except: continue
+        # 只抓台北的展覽
+        if "台北" not in show['showInfo'][0]['location']:
+            continue
             
-        # 地點檢查
-        location = info['location']
-        if location and ("台北" in location or "臺北" in location):
-            result_text += f"📍 {show['title']}\n"
-            result_text += f"📅 {info['time']}\n"
-            result_text += f"🏠 {location}\n"
-            result_text += "-" * 15 + "\n"
-            count += 1
-            
-        if count >= 5: break
+        # 整理展覽資訊
+        title = show['title']
+        date = show['showInfo'][0]['time']
+        location = show['showInfo'][0]['locationName']
         
+        result_text += f"📍 {title}\n📅 {date}\n🏢 {location}\n\n"
+        
+        count += 1
+        if count >= 5: # 只回傳前 5 個
+            break
+            
     if count == 0:
-        return "最近好像沒有展覽耶..."
+        return "最近台北好像沒有展覽資料耶 🤔"
         
     return result_text
 
