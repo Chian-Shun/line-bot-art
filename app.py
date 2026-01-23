@@ -1,60 +1,91 @@
-import requests
-from datetime import datetime
-from flask import Flask, request, abort
-from linebot.v3 import WebhookHandler
-from linebot.v3.exceptions import InvalidSignatureError
-from linebot.v3.messaging import (
-    Configuration, ApiClient, MessagingApi, ReplyMessageRequest, TextMessage
-)
-from linebot.v3.webhooks import MessageEvent, TextMessageContent
-import requests
-from datetime import datetime
 import os
+import json
+from datetime import datetime
+import requests
+from flask import Flask, request, abort
+
+from linebot import (
+    LineBotApi, WebhookHandler
+)
+from linebot.exceptions import (
+    InvalidSignatureError
+)
+from linebot.models import (
+    MessageEvent, TextMessage, TextSendMessage,
+)
 
 app = Flask(__name__)
 
-# ================= 鑰匙區 (請把你的密碼貼回來) =================
-CHANNEL_ACCESS_TOKEN = "H5Id19fzUIEJD+W77RDxScqdyRuPWuz1JBblqWTyjnJtCOSvW1Zl7wdi1UbwEKY/dQqCj/1K4u3tKXS2GMkx/4fkG6O0hS46XRaYwb2ybovSxQXs3rXg+4AKt8CeaGTqthCjvNWGDE6/qgBvkzqxiwdB04t89/1O/w1cDnyilFU=n"
-CHANNEL_SECRET = "75806eeda75c04e912aa27470eaad174"
-# ==========================================================
+# 從 Render 的環境變數讀取設定
+line_bot_api = LineBotApi(os.environ.get('CHANNEL_ACCESS_TOKEN'))
+handler = WebhookHandler(os.environ.get('CHANNEL_SECRET'))
 
-configuration = Configuration(access_token=CHANNEL_ACCESS_TOKEN)
-handler = WebhookHandler(CHANNEL_SECRET)
+# 監聽所有來自 /callback 的 Post Request
+@app.route("/callback", methods=['POST'])
+def callback():
+    # get X-Line-Signature header value
+    signature = request.headers['X-Line-Signature']
 
+    # get request body as text
+    body = request.get_data(as_text=True)
+    app.logger.info("Request body: " + body)
 
+    # handle webhook body
+    try:
+        handler.handle(body, signature)
+    except InvalidSignatureError:
+        print("Invalid signature. Please check your channel access token/channel secret.")
+        abort(400)
+
+    return 'OK'
+
+# 處理訊息
+@handler.add(MessageEvent, message=TextMessage)
+def handle_message(event):
+    user_msg = event.message.text
+    
+    if "看展" in user_msg:
+        reply_text = get_exhibitions()
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text=reply_text)
+        )
+    else:
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text=user_msg)
+        )
+
+# 抓取展覽資料的函式
 def get_exhibitions():
     try:
-        # 👇 真實的文化部網址
+        # 真實的文化部網址
         url = "https://cloud.culture.tw/frontsite/trans/SearchShowAction.do?method=doFindTypeJ&category=6"
         
-        # 👇 戴上偽裝面具 (假裝是電腦瀏覽器)
+        # 偽裝面具
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
 
-        # 👇 發送請求 (verify=False 是為了繞過一些安全檢查)
-        response = requests.get(url, headers=headers, verify=False)
+        # 發送請求 (設定 5 秒逾時)
+        response = requests.get(url, headers=headers, verify=False, timeout=5)
         
         # 嘗試解讀資料
         exhibitions = response.json()
         
     except Exception as e:
-        # 👇 如果失敗，這裡會顯示錯誤
-        # 你之前看到的「剛睡醒...」其實就是這裡的錯誤訊息
         print("抓取失敗，錯誤原因：", e)
-        return "😵‍💫 剛睡醒腦袋運轉中... 請再試一次😭"
+        return "😵‍💫 連線發生錯誤 (可能是文化部網站還沒修好，或是有連線限制) 😭"
 
-    # 👇 如果成功拿到資料，就開始整理
-    now = datetime.now()
+    # 整理資料
     result_text = "🎉 幫你找到最新的台北展覽：\n\n"
     
     count = 0
     for show in exhibitions:
-        # 只抓台北的展覽
+        # 只抓台北
         if "台北" not in show['showInfo'][0]['location']:
             continue
             
-        # 整理展覽資訊
         title = show['title']
         date = show['showInfo'][0]['time']
         location = show['showInfo'][0]['locationName']
@@ -62,37 +93,14 @@ def get_exhibitions():
         result_text += f"📍 {title}\n📅 {date}\n🏢 {location}\n\n"
         
         count += 1
-        if count >= 5: # 只回傳前 5 個
+        if count >= 5: 
             break
             
     if count == 0:
         return "最近台北好像沒有展覽資料耶 🤔"
         
     return result_text
- 
-
-@handler.add(MessageEvent, message=TextMessageContent)
-def handle_message(event):
-    user_msg = event.message.text # 使用者傳來的文字
-    
-    # 測試機器人是不是活著
-    if user_msg == "嗨":
-        return "你好！我現在住在美國的雲端主機上喔！☁️🇺🇸"
-    # 判斷使用者是不是想看展
-    if "看展" in user_msg or "展覽" in user_msg:
-        reply_msg = get_exhibitions() # 呼叫爬蟲功能！
-    else:
-        reply_msg = "你想看展覽嗎？試試看輸入「看展」這兩個字，我就會幫你找喔！"
-
-    # 回覆訊息
-    with ApiClient(configuration) as api_client:
-        line_bot_api = MessagingApi(api_client)
-        line_bot_api.reply_message_with_http_info(
-            ReplyMessageRequest(
-                reply_token=event.reply_token,
-                messages=[TextMessage(text=reply_msg)]
-            )
-        )
 
 if __name__ == "__main__":
-    app.run(port=5001)
+    port = int(os.environ.get('PORT', 10000))
+    app.run(host='0.0.0.0', port=port)
