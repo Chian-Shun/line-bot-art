@@ -18,7 +18,7 @@ if response.status_code == 200:
     
     count = 0 # 計數器：紀錄我們找到了幾筆
     
-    for show in exhibitions:
+    for show in exhibitions: 
         # --- 第一關：檢查資料完不完整 ---
         # 如果沒有詳細資訊 (showInfo 是空的)，就跳過看下一筆
         if len(show['showInfo']) == 0:
